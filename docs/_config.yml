@@ -1,0 +1,30 @@
+title: SRG Atlas
+description: Automated Classification of Strongly Regular Graphs
+baseurl: ""
+url: "https://MajdAbid.github.io/srg-atlas"
+theme: minima
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-relative-links
+
+# Auto-rebuild when experiment outputs change
+include:
+  - experiments/
+  - results/
+
+markdown: kramdown
+highlighter: rouge
+
+navigation:
+  - title: Atlas
+    url: /atlas
+  - title: Methods
+    url: /methods
+  - title: Experiments
+    url: /experiments
+  - title: Gallery
+    url: /visualizations
+  - title: About
+    url: /about
