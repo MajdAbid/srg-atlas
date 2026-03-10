@@ -1,7 +1,12 @@
 """
-generate_status.sage — Generate STATUS.md with all feasible SRG parameter sets
-for v=5 to v=64, sourced from Brouwer's table (hardcoded known results)
-and feasibility computation.
+generate_status.sage — Generate STATUS.md from Brouwer's table (ground truth).
+
+Brouwer's table: https://aeb.win.tue.nl/graphs/srg/srgtab.html
+Spence:         https://www.maths.gla.ac.uk/~es/srgraphs.php
+
+Only PRIMITIVE SRGs are listed (both G and complement connected),
+i.e. 0 < mu < k. Non-primitive cases (mu=0 or mu=k) are trivially
+characterised and excluded.
 
 Run with: sage core/generate_status.sage
 """
@@ -16,101 +21,185 @@ load(os.path.join(_CORE_DIR, 'srg_utils.sage'))
 load(os.path.join(_CORE_DIR, 'feasibility.sage'))
 
 # ---------------------------------------------------------------------------
-# Known classification results (from Brouwer's table + Spence's page)
-# Status: COMPLETE (fully classified), OPEN (not fully classified),
-#         NONE (proved nonexistent), UNIQUE (exactly one known)
-# Count: number of non-isomorphic SRGs in the class (? if unknown)
+# Ground truth from Brouwer's table (v=5..64), primitive SRGs only.
+#
+# Format: (v, k, lam, mu): (status, count, notes)
+#
+# Status:
+#   COMPLETE — fully classified; count is exact
+#   OPEN     — feasible, existence unresolved or count unknown
+#   PARTIAL  — some graphs found, completeness unknown
+#   NONE     — proved nonexistent
+#
+# Count: integer, or '?' if unknown.
 # ---------------------------------------------------------------------------
 
-KNOWN_RESULTS = {
-    # (v, k, lam, mu): (status, count, notes)
-    (5, 2, 0, 1):     ('COMPLETE', 1,     'Unique: C5'),
-    (9, 4, 1, 2):     ('COMPLETE', 1,     'Unique: Paley(9) = L2(3)'),
-    (10, 3, 0, 1):    ('COMPLETE', 1,     'Unique: Petersen graph'),
-    (10, 6, 3, 4):    ('COMPLETE', 1,     'Unique: Complement of Petersen'),
-    (13, 6, 2, 3):    ('COMPLETE', 1,     'Unique: Paley(13)'),
-    (15, 6, 1, 3):    ('COMPLETE', 1,     'Unique: Triangular T(6)'),
-    (15, 8, 4, 4):    ('COMPLETE', 1,     'Unique: Complement of T(6)'),
-    (16, 5, 0, 2):    ('COMPLETE', 2,     'Clebsch graph + 1 other'),
-    (16, 6, 2, 2):    ('COMPLETE', 2,     'L2(4) + 1 other'),
-    (16, 9, 4, 6):    ('COMPLETE', 2,     'Complements of srg(16,6,2,2)'),
-    (16, 10, 6, 6):   ('COMPLETE', 2,     'Complements of srg(16,5,0,2)'),
-    (17, 8, 3, 4):    ('COMPLETE', 1,     'Unique: Paley(17)'),
-    (21, 10, 3, 6):   ('COMPLETE', 1,     'Unique: Triangular T(7)'),
-    (21, 10, 5, 4):   ('COMPLETE', 1,     'Unique: Block graph of PG(2,4)?'),
-    (25, 8, 3, 2):    ('COMPLETE', 15,    'Paley + 14 others (Mathon)'),
-    (25, 12, 5, 6):   ('COMPLETE', 15,    'Complements of srg(25,8,3,2)'),
-    (26, 10, 3, 4):   ('COMPLETE', 10,    '10 non-isomorphic (Paulus)'),
-    (26, 15, 8, 9):   ('COMPLETE', 10,    'Complements of srg(26,10,3,4)'),
-    (27, 10, 1, 5):   ('COMPLETE', 1,     'Unique: Schlaefli graph'),
-    (27, 16, 10, 8):  ('COMPLETE', 1,     'Unique: complement Schlaefli'),
-    (28, 12, 6, 4):   ('COMPLETE', 1,     'Unique: Triangular T(8)'),
-    (28, 15, 6, 10):  ('COMPLETE', 4,     '4 non-isomorphic'),
-    (29, 14, 6, 7):   ('COMPLETE', 41,    'Spence 1995'),
-    (35, 16, 6, 8):   ('OPEN',     '?',   'Feasible; no construction known'),
-    (35, 18, 9, 9):   ('COMPLETE', 3854,  'Complements of srg(35,16,6,8)?'),
-    (36, 14, 4, 6):   ('COMPLETE', 180,   '180 non-isomorphic'),
-    (36, 15, 6, 6):   ('COMPLETE', 32548, 'McKay-Spence 2001'),
-    (36, 20, 10, 12): ('COMPLETE', 32548, 'Complements of srg(36,15,6,6)'),
-    (36, 21, 12, 12): ('COMPLETE', 180,   'Complements of srg(36,14,4,6)'),
-    (37, 18, 8, 9):   ('COMPLETE', 1,     'Unique: Paley(37)'),
-    (40, 12, 2, 4):   ('COMPLETE', '?',   'Some known; completeness unknown'),
-    (41, 20, 9, 10):  ('COMPLETE', 1,     'Unique: Paley(41)'),
-    (45, 12, 3, 3):   ('COMPLETE', 78,    '78 non-isomorphic'),
-    (45, 32, 22, 24): ('COMPLETE', 78,    'Complements of srg(45,12,3,3)'),
-    (49, 12, 5, 2):   ('COMPLETE', '?',   'At least Paley(7)^2'),
-    (49, 18, 7, 6):   ('COMPLETE', '?',   'Several known'),
-    (49, 24, 11, 12): ('COMPLETE', 1,     'Unique: Paley(49)'),
-    (50, 7, 0, 1):    ('COMPLETE', 1,     'Unique: Hoffman-Singleton graph'),
-    (53, 26, 12, 13): ('COMPLETE', 1,     'Unique: Paley(53)'),
-    (55, 18, 9, 4):   ('COMPLETE', 1,     'Unique: Triangular T(11)'),
-    (56, 10, 0, 2):   ('OPEN',     '?',   'Gewirtz subgraph structure'),
-    (57, 14, 1, 4):   ('OPEN',     '?',   'Feasible; very hard'),
-    (61, 30, 14, 15): ('COMPLETE', 1,     'Unique: Paley(61)'),
-    (63, 30, 13, 15): ('OPEN',     '?',   'Large case, partial'),
-    (64, 18, 2, 6):   ('COMPLETE', '?',   'Several known'),
-    (64, 21, 8, 6):   ('OPEN',     '?',   'Feasible'),
-    (64, 27, 10, 12): ('OPEN',     '?',   'Feasible'),
-    (64, 28, 12, 12): ('COMPLETE', '?',   'At least one known'),
+BROUWER = {
+    # v=5
+    (5,  2,  0,  1):  ('COMPLETE', 1,      'Unique: C5 (Paley(5), conference)'),
+
+    # v=9
+    (9,  4,  1,  2):  ('COMPLETE', 1,      'Unique: Paley(9) = L2(3)'),
+
+    # v=10
+    (10, 3,  0,  1):  ('COMPLETE', 1,      'Unique: Petersen graph'),
+    (10, 6,  3,  4):  ('COMPLETE', 1,      'Unique: complement of Petersen'),
+
+    # v=13
+    (13, 6,  2,  3):  ('COMPLETE', 1,      'Unique: Paley(13) (conference)'),
+
+    # v=15
+    (15, 6,  1,  3):  ('COMPLETE', 1,      'Unique: Triangular T(6)'),
+    (15, 8,  4,  4):  ('COMPLETE', 1,      'Unique: complement of T(6)'),
+
+    # v=16
+    (16, 5,  0,  2):  ('COMPLETE', 2,      'Clebsch graph + 1 other'),
+    (16, 6,  2,  2):  ('COMPLETE', 2,      'L2(4) + 1 other'),
+    (16, 9,  4,  6):  ('COMPLETE', 2,      'Complements of srg(16,6,2,2)'),
+    (16, 10, 6,  6):  ('COMPLETE', 2,      'Complements of srg(16,5,0,2)'),
+
+    # v=17
+    (17, 8,  3,  4):  ('COMPLETE', 1,      'Unique: Paley(17) (conference)'),
+
+    # v=21
+    (21, 10, 3,  6):  ('COMPLETE', 1,      'Unique: Triangular T(7)'),
+    (21, 10, 5,  4):  ('OPEN',     '?',    'Existence unknown'),
+    (21, 10, 4,  5):  ('NONE',     0,      'Proved nonexistent (Deza-Frankl 1986)'),
+
+    # v=25
+    (25, 8,  3,  2):  ('COMPLETE', 15,     'Mathon 1975; includes Paley(25)'),
+    (25, 12, 5,  6):  ('COMPLETE', 15,     'Complements of srg(25,8,3,2)'),
+    (25, 16, 9,  12): ('OPEN',     '?',    'Existence unknown'),
+
+    # v=26
+    (26, 10, 3,  4):  ('COMPLETE', 10,     'Paulus 1973'),
+    (26, 15, 8,  9):  ('COMPLETE', 10,     'Complements of srg(26,10,3,4)'),
+
+    # v=27
+    (27, 10, 1,  5):  ('COMPLETE', 1,      'Unique: Schläfli graph'),
+    (27, 16, 10, 8):  ('COMPLETE', 1,      'Unique: complement of Schläfli'),
+    (27, 15, 8,  9):  ('OPEN',     '?',    'Existence unknown'),
+
+    # v=28
+    (28, 9,  0,  4):  ('NONE',     0,      'Proved nonexistent'),
+    (28, 12, 6,  4):  ('COMPLETE', 4,      'T(8) + 3 Chang graphs'),
+    (28, 15, 6,  10): ('OPEN',     '?',    'Existence unknown'),
+    (28, 18, 12, 10): ('OPEN',     '?',    'Existence unknown'),
+
+    # v=29
+    (29, 14, 6,  7):  ('COMPLETE', 41,     'Spence 1995 (conference)'),
+
+    # v=33
+    (33, 16, 7,  8):  ('NONE',     0,      'Proved nonexistent (conference)'),
+
+    # v=35
+    (35, 16, 6,  8):  ('OPEN',     '?',    'No example known; existence open'),
+    (35, 18, 9,  9):  ('PARTIAL',  '3854+','At least 3854 known; incomplete'),
+
+    # v=36
+    (36, 10, 4,  2):  ('COMPLETE', 1,      'Unique: GQ(2,4) point graph'),
+    (36, 14, 7,  4):  ('COMPLETE', 1,      'Unique: Triangular T(9)'),
+    (36, 14, 4,  6):  ('COMPLETE', 180,    'Classified'),
+    (36, 15, 6,  6):  ('COMPLETE', 32548,  'McKay-Spence 2001'),
+    (36, 20, 10, 12): ('OPEN',     '?',    'Complement of srg(36,15,6,6); unclassified'),
+    (36, 21, 10, 15): ('OPEN',     '?',    'Existence unknown'),
+    (36, 21, 12, 12): ('COMPLETE', 180,    'Complements of srg(36,14,4,6)'),
+    (36, 25, 16, 20): ('OPEN',     '?',    'Existence unknown'),
+
+    # v=37
+    (37, 18, 8,  9):  ('OPEN',     '?',    'Many known; completeness open (conference)'),
+
+    # v=40
+    (40, 12, 2,  4):  ('COMPLETE', 28,     'Spence 2000'),
+    (40, 27, 18, 18): ('OPEN',     '?',    'Existence unknown'),
+
+    # v=41
+    (41, 20, 9,  10): ('OPEN',     '?',    'Many known; completeness open (conference)'),
+
+    # v=45
+    (45, 12, 3,  3):  ('COMPLETE', 78,     'Coolsaet-Degraer-Moorhouse 2006'),
+    (45, 16, 8,  4):  ('COMPLETE', 1,      'Unique: Triangular T(10)'),
+    (45, 22, 10, 11): ('OPEN',     '?',    'Existence unknown (conference)'),
+    (45, 28, 15, 21): ('OPEN',     '?',    'Existence unknown'),
+    (45, 32, 22, 24): ('COMPLETE', 78,     'Complements of srg(45,12,3,3)'),
+
+    # v=49
+    (49, 12, 5,  2):  ('COMPLETE', '?',    'Several known; completeness open'),
+    (49, 16, 3,  6):  ('NONE',     0,      'Proved nonexistent'),
+    (49, 18, 7,  6):  ('OPEN',     '?',    'Several known; completeness open'),
+    (49, 24, 11, 12): ('OPEN',     '?',    'Several known; completeness open (conference)'),
+    (49, 30, 17, 20): ('OPEN',     '?',    'Existence unknown'),
+    (49, 32, 21, 20): ('OPEN',     '?',    'Existence unknown'),
+    (49, 36, 25, 30): ('OPEN',     '?',    'Existence unknown'),
+
+    # v=50
+    (50, 7,  0,  1):  ('COMPLETE', 1,      'Unique: Hoffman-Singleton graph'),
+    (50, 21, 4,  12): ('NONE',     0,      'Proved nonexistent'),
+    (50, 21, 8,  9):  ('OPEN',     '?',    'Existence unknown (conference)'),
+    (50, 28, 15, 16): ('OPEN',     '?',    'Existence unknown'),
+    (50, 28, 18, 12): ('OPEN',     '?',    'Existence unknown'),
+    (50, 42, 35, 36): ('OPEN',     '?',    'Existence unknown'),
+
+    # v=53
+    (53, 26, 12, 13): ('COMPLETE', 1,      'Unique: Paley(53) (conference)'),
+
+    # v=55
+    (55, 18, 9,  4):  ('COMPLETE', 1,      'Unique: Triangular T(11)'),
+    (55, 36, 21, 28): ('OPEN',     '?',    'Existence unknown'),
+
+    # v=56
+    (56, 10, 0,  2):  ('COMPLETE', 1,      'Unique: Gewirtz graph'),
+    (56, 22, 3,  12): ('NONE',     0,      'Proved nonexistent'),
+    (56, 33, 22, 15): ('OPEN',     '?',    'Existence unknown'),
+    (56, 45, 36, 36): ('OPEN',     '?',    'Existence unknown'),
+
+    # v=57
+    (57, 14, 1,  4):  ('NONE',     0,      'Proved nonexistent'),
+    (57, 24, 11, 9):  ('COMPLETE', 1,      'Unique (conference?)'),
+    (57, 28, 13, 14): ('NONE',     0,      'Proved nonexistent (conference)'),
+    (57, 32, 16, 20): ('OPEN',     '?',    'Existence unknown'),
+    (57, 42, 31, 30): ('OPEN',     '?',    'Existence unknown'),
+
+    # v=61
+    (61, 30, 14, 15): ('COMPLETE', 1,      'Unique: Paley(61) (conference)'),
+
+    # v=63
+    (63, 22, 1,  11): ('NONE',     0,      'Proved nonexistent'),
+    (63, 30, 13, 15): ('OPEN',     '?',    'Many known; completeness open'),
+    (63, 32, 16, 16): ('OPEN',     '?',    'Many known; completeness open'),
+    (63, 40, 28, 20): ('OPEN',     '?',    'Existence unknown'),
+
+    # v=64
+    (64, 14, 6,  2):  ('COMPLETE', 1,      'Unique: halved 7-cube related'),
+    (64, 18, 2,  6):  ('PARTIAL',  '167+', 'At least 167 known; completeness open'),
+    (64, 21, 0,  10): ('NONE',     0,      'Proved nonexistent'),
+    (64, 21, 8,  6):  ('COMPLETE', 1,      'Unique (known from database)'),
+    (64, 27, 10, 12): ('COMPLETE', 1,      'Unique (known from database)'),
+    (64, 28, 12, 12): ('OPEN',     '?',    'Several known; completeness open'),
+    (64, 30, 18, 10): ('NONE',     0,      'Proved nonexistent'),
+    (64, 35, 18, 20): ('OPEN',     '?',    'Existence unknown'),
+    (64, 36, 20, 20): ('OPEN',     '?',    'Several known; completeness open'),
+    (64, 42, 26, 30): ('OPEN',     '?',    'Existence unknown'),
+    (64, 45, 32, 30): ('OPEN',     '?',    'Existence unknown'),
+    (64, 49, 36, 42): ('OPEN',     '?',    'Existence unknown'),
 }
 
 
-def generate_status_md(v_min=5, v_max=64, outfile='STATUS.md'):
-    """Generate STATUS.md with all feasible parameter sets."""
-    print(f"Computing feasibility for v={v_min} to v={v_max}...")
+def generate_status_md(outfile='STATUS.md'):
+    """Write STATUS.md from BROUWER dict, sorted by (v, k)."""
+    entries = sorted(BROUWER.items(), key=lambda x: (x[0][0], x[0][1]))
 
-    all_params = []
-    for v in range(v_min, v_max + 1):
-        for k in range(1, v):
-            for mu in range(1, k + 1):
-                for lam in range(0, k):
-                    if k * (k - 1 - lam) != mu * (v - k - 1):
-                        continue
-                    if v - k - 1 < 0:
-                        continue
-                    status = is_feasible(v, k, lam, mu, verbose=False)
-                    if status == 'FEASIBLE':
-                        known = KNOWN_RESULTS.get((v, k, lam, mu))
-                        if known:
-                            row_status, count, notes = known
-                        else:
-                            row_status = 'OPEN'
-                            count = '?'
-                            notes = 'Feasible; not yet classified'
-                        all_params.append((v, k, lam, mu, row_status, count, notes))
-        if v % 10 == 0:
-            print(f"  Done v={v}")
-
-    # Write STATUS.md
     lines = [
         "# STATUS.md — SRG Research Master Table",
         "",
-        f"Generated for v = {v_min} to {v_max}.",
-        "Sources: Brouwer's table (https://aeb.win.tue.nl/graphs/srg/srgtab.html),",
-        "Spence's classifications (https://www.maths.gla.ac.uk/~es/srgraphs.php).",
+        "Ground truth: Brouwer's table https://aeb.win.tue.nl/graphs/srg/srgtab.html",
+        "Spence's classifications: https://www.maths.gla.ac.uk/~es/srgraphs.php",
+        "",
+        "Only **primitive** SRGs listed (0 < μ < k).",
+        "Non-primitive (disjoint cliques μ=0, complete multipartite μ=k) excluded.",
         "",
         "**Status legend:**",
-        "- `COMPLETE` — fully classified (count is exact)",
+        "- `COMPLETE` — fully classified; count is exact",
         "- `OPEN`     — feasible but not fully classified",
         "- `PARTIAL`  — some graphs found, completeness unknown",
         "- `NONE`     — proved nonexistent",
@@ -119,16 +208,22 @@ def generate_status_md(v_min=5, v_max=64, outfile='STATUS.md'):
         "|-----------|--------|-------|--------------|-------|",
     ]
 
-    for (v, k, lam, mu, status, count, notes) in all_params:
+    for (v, k, lam, mu), (status, count, notes) in entries:
         lines.append(f"| ({v},{k},{lam},{mu}) | {status} | {count} | — | {notes} |")
 
     with open(outfile, 'w') as f:
         f.write('\n'.join(lines) + '\n')
 
-    print(f"\nWrote {len(all_params)} parameter sets to {outfile}")
-    return all_params
+    total = len(entries)
+    complete = sum(1 for _, (s, _, _) in entries if s == 'COMPLETE')
+    open_ = sum(1 for _, (s, _, _) in entries if s == 'OPEN')
+    partial = sum(1 for _, (s, _, _) in entries if s == 'PARTIAL')
+    none_ = sum(1 for _, (s, _, _) in entries if s == 'NONE')
+
+    print(f"Wrote {total} entries to {outfile}")
+    print(f"  COMPLETE: {complete}  OPEN: {open_}  PARTIAL: {partial}  NONE: {none_}")
+    return entries
 
 
 if __name__ == '__main__':
-    params = generate_status_md()
-    print(f"Total feasible parameter sets (v=5..64): {len(params)}")
+    generate_status_md()

@@ -61,7 +61,8 @@ def read_status(status_file='STATUS.md'):
 
 
 def pick_target(rows):
-    """Return the first OPEN or PARTIAL parameter set (smallest v, then k)."""
+    """Return the first OPEN or PARTIAL parameter set (smallest v, then k).
+    Skips COMPLETE and NONE entries."""
     for row in rows:
         if row['status'] in ('OPEN', 'PARTIAL'):
             return row
