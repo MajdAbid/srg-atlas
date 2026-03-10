@@ -13,7 +13,7 @@ Spence's classifications (https://www.maths.gla.ac.uk/~es/srgraphs.php).
 | (v,k,λ,μ) | Status | Count | Methods used | Notes |
 |-----------|--------|-------|--------------|-------|
 | (5,2,0,1) | COMPLETE | 1 | — | Unique: C5 |
-| (8,6,4,6) | OPEN | ? | — | Feasible; not yet classified |
+| (8,6,4,6) | COMPLETE | 1 | — | EXP_20260310_001_srg8_6_4_6; database; 0m 0s |
 | (9,4,1,2) | COMPLETE | 1 | — | Unique: Paley(9) = L2(3) |
 | (10,3,0,1) | COMPLETE | 1 | — | Unique: Petersen graph |
 | (10,6,3,4) | COMPLETE | 1 | — | Unique: Complement of Petersen |

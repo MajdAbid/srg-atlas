@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-03-10 19:20:21",
+  "elapsed_seconds": 0,
+  "results": {
+    "target": "srg(8,6,4,6)",
+    "graphs_found": 1,
+    "methods": [
+      "database"
+    ],
+    "status": "COMPLETE"
+  }
+}

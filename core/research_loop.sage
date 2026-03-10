@@ -356,9 +356,10 @@ def _finish(v, k, lam, mu, exp_dir, exp_name, found,
     )
 
     # Print commit hint
+    commit_msg = f"EXP_{exp_name.split('_')[2]}: srg({v},{k},{lam},{mu}) -- {new_status} -- {len(found)} graphs found"
     print(f"\n  Suggested commit:")
     print(f"  git add experiments/ STATUS.md")
-    print(f"  git commit -m 'EXP_{exp_name.split(\"_\")[2]}: srg({v},{k},{lam},{mu}) — {new_status} — {len(found)} graphs found'")
+    print(f"  git commit -m {repr(commit_msg)}")
 
 
 # ---------------------------------------------------------------------------
