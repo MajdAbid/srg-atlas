@@ -120,10 +120,14 @@ def make_experiment_dir(v, k, lam, mu):
 
 def run_constructions(v, k, lam, mu, exp_dir, verbose=True):
     """
-    Try all construction methods A–D. Return list of (Graph, method_name).
+    Try all construction methods A–E. Return (found, all_methods_tried).
+
+    found: list of (Graph, method_name) for successful constructions
+    all_methods_tried: list of all method names attempted (including unsuccessful)
     """
     found = []
     seen_labels = set()
+    all_methods_tried = []
 
     def add(G, method):
         cl = G.canonical_label().graph6_string()
@@ -133,47 +137,54 @@ def run_constructions(v, k, lam, mu, exp_dir, verbose=True):
             if verbose:
                 print(f"    [{method}] New non-isomorphic graph #{len(found)}")
 
-    if time_is_up(): return found
+    if time_is_up(): return found, all_methods_tried
 
     # Method A: database
     print("  [A] Database lookup...")
+    all_methods_tried.append('database')
     G = try_database(v, k, lam, mu)
     if G is not None and verify_srg(G, v, k, lam, mu):
         add(G, 'database')
 
-    if time_is_up(): return found
+    if time_is_up(): return found, all_methods_tried
 
     # Method B: algebraic constructions
     print("  [B] Algebraic constructions...")
+    for method_name in ['paley', 'triangular', 'latin_square', 'power_residue', 'kneser', 'complement']:
+        if method_name not in all_methods_tried:
+            all_methods_tried.append(method_name)
     for G, method in try_all_constructions(v, k, lam, mu, verbose=False):
         add(G, method)
 
-    if time_is_up(): return found
+    if time_is_up(): return found, all_methods_tried
 
     # Method C: Seidel switching from each found graph
     if found:
         print(f"  [C] Seidel switching from {len(found)} seed(s)...")
+        all_methods_tried.append('seidel_switching')
         for G0, _ in list(found):
             if time_is_up(): break
             mates = switching_search(G0, v, k, lam, mu, max_rounds=3, verbose=False)
             for H in mates:
                 add(H, 'seidel_switching')
 
-    if time_is_up(): return found
+    if time_is_up(): return found, all_methods_tried
 
     # Method D: Godsil-McKay switching from each found graph
     if found:
         print(f"  [D] Godsil-McKay switching from {len(found)} seed(s)...")
+        all_methods_tried.append('gm_switching')
         for G0, _ in list(found):
             if time_is_up(): break
             mates = gm_switching_search(G0, v, k, lam, mu, max_trials=200, verbose=False)
             for H in mates:
                 add(H, 'gm_switching')
 
-    if time_is_up(): return found
+    if time_is_up(): return found, all_methods_tried
 
     # Method E: spectral summary + p-rank fingerprint (informational)
     print("  [E] Spectral analysis + p-rank...")
+    all_methods_tried.append('spectral')
     spec = spectral_summary(v, k, lam, mu)
     if verbose:
         ev = spec['eigenvalues']
@@ -188,7 +199,7 @@ def run_constructions(v, k, lam, mu, exp_dir, verbose=True):
                 profile = p_rank_profile(G0, primes=[2, 3, 5])
                 print(f"    Graph #{i+1} ({method}) p-ranks: {profile}")
 
-    return found
+    return found, all_methods_tried
 
 
 # ---------------------------------------------------------------------------
@@ -322,6 +333,7 @@ def write_experiment_md(exp_dir, exp_name, v, k, lam, mu,
             'complement': 'Complement of a known SRG',
             'seidel_switching': 'Seidel switching (random subset sampling)',
             'gm_switching': 'Godsil-McKay switching (equitable partition search)',
+            'spectral': 'Spectral analysis, p-rank fingerprinting, subconstituent structure',
         }
         for m in methods_tried:
             desc = method_descriptions.get(m, m)
@@ -454,10 +466,11 @@ def run_session(minutes=10):
 
     # Step 3: constructions
     print("Step 3: Construction phase...")
-    found = run_constructions(v, k, lam, mu, exp_dir, verbose=True)
+    found, all_methods_tried = run_constructions(v, k, lam, mu, exp_dir, verbose=True)
 
     if time_is_up():
         _finish(v, k, lam, mu, exp_dir, exp_name, found, original_status,
+                all_methods_tried=all_methods_tried,
                 partial=True, notes=f"Timer expired during construction for srg({v},{k},{lam},{mu}).")
         return
 
@@ -476,27 +489,31 @@ def run_session(minutes=10):
 
     if time_is_up():
         _finish(v, k, lam, mu, exp_dir, exp_name, verified, original_status,
+                all_methods_tried=all_methods_tried,
                 partial=True, notes=f"Timer expired after verification for srg({v},{k},{lam},{mu}).")
         return
 
     # Steps 5, 6, 7: document, visualize, update STATUS
-    _finish(v, k, lam, mu, exp_dir, exp_name, verified, original_status, partial=False)
+    _finish(v, k, lam, mu, exp_dir, exp_name, verified, original_status,
+            all_methods_tried=all_methods_tried, partial=False)
 
 
 def _finish(v, k, lam, mu, exp_dir, exp_name, found, original_status,
-            partial=False, notes=''):
+            all_methods_tried=None, partial=False, notes=''):
     """Steps 5-7: document, update STATUS.md, commit."""
     elapsed = elapsed_str()
     elapsed_s = elapsed_seconds()
 
-    # Determine methods used
+    # Determine methods used (successful) and all methods tried
     methods_used = sorted(set(m for _, m in found)) if found else []
+    if all_methods_tried is None:
+        all_methods_tried = methods_used
 
     # Step 5: document
     print("\nStep 5: Documentation...")
     write_experiment_md(
         exp_dir, exp_name, v, k, lam, mu,
-        found, methods_used, elapsed,
+        found, all_methods_tried, elapsed,
         open_questions=notes
     )
     write_summary_json(exp_dir, exp_name, v, k, lam, mu, found, methods_used, elapsed_s)
