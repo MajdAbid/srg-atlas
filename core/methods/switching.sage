@@ -154,4 +154,132 @@ def switching_search(G, v, k, lam, mu, max_rounds=3, verbose=True):
     return found
 
 
+def godsil_mckay_switch(G, partition, verbose=False):
+    """
+    Apply Godsil-McKay switching to graph G with equitable partition.
+
+    Given a partition {C_1, ..., C_t, D} of V(G) such that:
+      - {C_1, ..., C_t} is equitable (any two vertices in C_i have the same
+        number of neighbors in C_j, for all i, j)
+      - Every x in D has either 0, |C_i|/2, or |C_i| neighbors in each C_i
+
+    The switched graph G' is obtained by toggling edges between x in D and
+    C_i whenever x has exactly |C_i|/2 neighbors in C_i.
+
+    G and G' are cospectral (same eigenvalues). If G is SRG, G' may also be SRG.
+
+    Source: Brouwer & Van Maldeghem, Ch.8 §8.13.1; Godsil & McKay 1982.
+
+    Inputs:
+        G         : Sage Graph
+        partition  : dict with keys 'cells' (list of lists) and 'D' (list)
+        verbose    : print details
+
+    Outputs:
+        Sage Graph after GM-switching, or None if partition is invalid
+    """
+    cells = partition['cells']
+    D = set(partition['D'])
+
+    # Validate: each C_i must have even size for the half-neighbor condition
+    for C in cells:
+        if len(C) % 2 != 0:
+            return None
+
+    H = G.copy()
+
+    for C in cells:
+        C_set = set(C)
+        half = len(C) // 2
+        for x in D:
+            nbrs_in_C = len(set(G.neighbors(x)) & C_set)
+            if nbrs_in_C == half:
+                # Toggle: remove existing edges, add missing ones
+                for c in C:
+                    if H.has_edge(x, c):
+                        H.delete_edge(x, c)
+                    else:
+                        H.add_edge(x, c)
+            elif nbrs_in_C != 0 and nbrs_in_C != len(C):
+                # Invalid partition for this vertex
+                return None
+
+    return H
+
+
+def gm_switching_search(G, v, k, lam, mu, max_trials=200, verbose=True):
+    """
+    Search for Godsil-McKay switching partners of G.
+
+    Strategy: find equitable partitions of G with a single cell C and
+    remainder D, where |C| is even and every vertex in D has 0, |C|/2,
+    or |C| neighbors in C.
+
+    Source: Brouwer & Van Maldeghem, Ch.8 §8.13.1.
+
+    Inputs:
+        G              : starting SRG
+        v, k, lam, mu  : parameters
+        max_trials      : number of random cells to try
+        verbose         : print progress
+
+    Outputs:
+        list of non-isomorphic new SRGs found via GM-switching
+    """
+    import random as _rng
+
+    verts = list(G.vertices())
+    seen_labels = set()
+    found = []
+
+    cl0 = G.canonical_label().graph6_string()
+    seen_labels.add(cl0)
+
+    def _time_check():
+        try:
+            return time_is_up()
+        except NameError:
+            return False
+
+    for trial in range(max_trials):
+        if _time_check():
+            break
+
+        # Pick a random even-sized cell C
+        cell_size = _rng.choice([s for s in range(2, min(v // 2, 12) + 1, 2)])
+        C = _rng.sample(verts, cell_size)
+        C_set = set(C)
+        D = [x for x in verts if x not in C_set]
+
+        # Check validity: every x in D must have 0, |C|/2, or |C| neighbors in C
+        half = cell_size // 2
+        valid = True
+        for x in D:
+            nbrs = len(set(G.neighbors(x)) & C_set)
+            if nbrs not in (0, half, cell_size):
+                valid = False
+                break
+
+        if not valid:
+            continue
+
+        partition = {'cells': [C], 'D': D}
+        H = godsil_mckay_switch(G, partition, verbose=False)
+        if H is None:
+            continue
+
+        if verify_srg(H, v, k, lam, mu, verbose=False):
+            cl = H.canonical_label().graph6_string()
+            if cl not in seen_labels:
+                seen_labels.add(cl)
+                found.append(H)
+                if verbose:
+                    print(f"    [GM-switch] New SRG mate #{len(found)} (cell size {cell_size})")
+
+    if verbose:
+        print(f"    [GM-switch] Done: {len(found)} new mate(s) from {max_trials} trials")
+
+    return found
+
+
 print("switching.sage loaded.")

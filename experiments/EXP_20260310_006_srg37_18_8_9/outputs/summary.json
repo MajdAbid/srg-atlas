@@ -1,0 +1,20 @@
+{
+  "experiment_id": "EXP_20260310_006_srg37_18_8_9",
+  "parameters": {
+    "v": 37,
+    "k": 18,
+    "lambda": 8,
+    "mu": 9
+  },
+  "status": "COMPLETE",
+  "graphs_found": 1,
+  "isomorphism_classes": 1,
+  "methods_used": [
+    "database"
+  ],
+  "time_seconds": 0,
+  "graph_files": [
+    "outputs/graphs/srg_37_18_8_9_001.g6"
+  ],
+  "notes": ""
+}

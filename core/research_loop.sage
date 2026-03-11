@@ -161,8 +161,19 @@ def run_constructions(v, k, lam, mu, exp_dir, verbose=True):
 
     if time_is_up(): return found
 
-    # Method D: spectral summary (informational, no new graphs)
-    print("  [D] Spectral analysis...")
+    # Method D: Godsil-McKay switching from each found graph
+    if found:
+        print(f"  [D] Godsil-McKay switching from {len(found)} seed(s)...")
+        for G0, _ in list(found):
+            if time_is_up(): break
+            mates = gm_switching_search(G0, v, k, lam, mu, max_trials=200, verbose=False)
+            for H in mates:
+                add(H, 'gm_switching')
+
+    if time_is_up(): return found
+
+    # Method E: spectral summary + p-rank fingerprint (informational)
+    print("  [E] Spectral analysis + p-rank...")
     spec = spectral_summary(v, k, lam, mu)
     if verbose:
         ev = spec['eigenvalues']
@@ -172,6 +183,10 @@ def run_constructions(v, k, lam, mu, exp_dir, verbose=True):
         if hb:
             print(f"    Hoffman bounds: clique≤{hb['clique_bound']}, "
                   f"indep≤{hb['independence_bound']}")
+        if found:
+            for i, (G0, method) in enumerate(found[:5]):
+                profile = p_rank_profile(G0, primes=[2, 3, 5])
+                print(f"    Graph #{i+1} ({method}) p-ranks: {profile}")
 
     return found
 

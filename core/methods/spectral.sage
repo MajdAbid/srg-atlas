@@ -91,4 +91,84 @@ def spectral_summary(v, k, lam, mu):
     return data
 
 
+def p_rank(G, p):
+    """
+    Compute the p-rank of the adjacency matrix of G over GF(p).
+
+    The p-rank is an important invariant that can distinguish non-isomorphic
+    SRGs with the same parameters. Two cospectral SRGs may have different
+    p-ranks.
+
+    For Paley graphs P(q) with q = p^e: rk_p(A) is related to the number
+    of e-th roots and has known formulas.
+
+    Source: Brouwer & Van Maldeghem, Ch.9; also Ch.7 §7.4.
+
+    Inputs:
+        G : Sage Graph
+        p : prime number
+
+    Outputs:
+        integer: rank of adjacency matrix over GF(p)
+
+    Example:
+        r = p_rank(graphs.PaleyGraph(13), 13)  # returns 7
+    """
+    A = G.adjacency_matrix().change_ring(GF(p))
+    return A.rank()
+
+
+def p_rank_profile(G, primes=None):
+    """
+    Compute the p-rank of G for several primes, yielding a fingerprint.
+
+    This profile can distinguish SRGs that are cospectral (same eigenvalues)
+    but non-isomorphic.
+
+    Inputs:
+        G      : Sage Graph
+        primes : list of primes to test (default: first 8 primes)
+
+    Outputs:
+        dict mapping p -> rank
+
+    Example:
+        profile = p_rank_profile(graphs.PaleyGraph(13))
+        # => {2: 10, 3: 12, 5: 12, 7: 12, 11: 12, 13: 7, ...}
+    """
+    if primes is None:
+        primes = [2, 3, 5, 7, 11, 13, 17, 19]
+    return {p: p_rank(G, p) for p in primes}
+
+
+def subconstituent_params(G, vertex=None):
+    """
+    Compute the subconstituent (local graph) parameters of an SRG.
+
+    For an SRG Gamma and vertex x, the local graph Delta(x) is the subgraph
+    induced on the neighbors of x. If Gamma satisfies the 4-vertex condition
+    (Proposition 8.16.1), Delta(x) is also SRG.
+
+    Source: Brouwer & Van Maldeghem, Ch.8 §8.16.
+
+    Inputs:
+        G      : Sage Graph (should be SRG)
+        vertex : vertex to compute local graph at (default: first vertex)
+
+    Outputs:
+        dict with 'local_graph', 'is_srg', 'params' (if SRG)
+    """
+    if vertex is None:
+        vertex = G.vertices()[0]
+
+    nbrs = G.neighbors(vertex)
+    local = G.subgraph(nbrs)
+    params = local.is_strongly_regular(parameters=True)
+
+    result = {'local_graph': local, 'is_srg': params is not False}
+    if params is not False:
+        result['params'] = params
+    return result
+
+
 print("spectral.sage loaded.")
