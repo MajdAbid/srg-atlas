@@ -197,31 +197,183 @@ def run_constructions(v, k, lam, mu, exp_dir, verbose=True):
 
 def write_experiment_md(exp_dir, exp_name, v, k, lam, mu,
                         found, methods_tried, elapsed, open_questions=''):
-    """Write EXPERIMENT.md for this experiment."""
+    """Write EXPERIMENT.md as a mathematical investigation report."""
     path = os.path.join(exp_dir, 'EXPERIMENT.md')
     date = time.strftime('%Y-%m-%d')
+
+    # Compute spectral data for the report
+    ev = srg_eigenvalues(v, k, lam, mu)
+    hb = hoffman_bound(v, k, lam, mu)
+
+    # Determine conference/half-case
+    Delta = (lam - mu)**2 + 4 * (k - mu)
+    sqrt_d = Integer(Delta).isqrt()
+    delta_is_square = (sqrt_d * sqrt_d == Delta)
+    is_conf = (Delta == v and not delta_is_square)
+
+    # Complement parameters
+    k2 = v - k - 1
+    lam2 = v - 2*k + mu - 2
+    mu2 = v - 2*k + lam
+    is_self_comp = (k == k2 and lam == lam2 and mu == mu2)
+
+    # Compute p-rank profiles if graphs found
+    p_profiles = []
+    aut_orders = []
+    for G, method in found:
+        try:
+            profile = p_rank_profile(G, primes=[2, 3, 5])
+            p_profiles.append(profile)
+        except Exception:
+            p_profiles.append({})
+        try:
+            aut_orders.append(G.automorphism_group().order())
+        except Exception:
+            aut_orders.append('?')
+
     with open(path, 'w') as f:
-        f.write(f"# Experiment: {exp_name} — srg({v},{k},{lam},{mu})\n\n")
-        f.write(f"**Date**: {date}\n\n")
-        f.write("## Objective\n")
-        f.write(f"Classify all non-isomorphic srg({v},{k},{lam},{mu}).\n\n")
-        f.write("## Methods attempted\n")
+        f.write(f"# Investigation: srg({v}, {k}, {lam}, {mu})\n\n")
+        f.write(f"**Date**: {date} | **Experiment**: {exp_name} | **Time**: {elapsed}\n\n")
+
+        # --- 1. Parameter analysis ---
+        f.write("## 1. Parameter analysis\n\n")
+        f.write(f"We consider strongly regular graphs with parameters "
+                f"(v, k, λ, μ) = ({v}, {k}, {lam}, {mu}).\n\n")
+
+        f.write(f"**Basic identity.** We verify k(k − λ − 1) = μ(v − k − 1): "
+                f"{k}·{k - lam - 1} = {k*(k - lam - 1)} and "
+                f"{mu}·{v - k - 1} = {mu*(v - k - 1)}. ")
+        if k * (k - lam - 1) == mu * (v - k - 1):
+            f.write("✓ Consistent.\n\n")
+        else:
+            f.write("✗ Inconsistent — parameters are infeasible.\n\n")
+
+        f.write(f"**Discriminant.** Δ = (λ − μ)² + 4(k − μ) = "
+                f"({lam} − {mu})² + 4·({k} − {mu}) = {Delta}.\n\n")
+
+        if ev:
+            if is_conf:
+                f.write(f"Since Δ = {Delta} = v and v is not a perfect square, "
+                        f"this is a **conference graph** (half-case). "
+                        f"The eigenvalues are r, s = (−1 ± √{v})/2 ≈ "
+                        f"{float(ev['r']):.4f}, {float(ev['s']):.4f}, "
+                        f"each with multiplicity (v−1)/2 = {(v-1)//2}.\n\n")
+            else:
+                f.write(f"√Δ = {sqrt_d}, so the eigenvalues are "
+                        f"r = {ev['r']}, s = {ev['s']} with multiplicities "
+                        f"f = {ev['f']}, g = {ev['g']}.\n\n")
+
+        if hb and hb.get('clique_bound'):
+            f.write(f"**Hoffman bounds.** ω(Γ) ≤ 1 − k/s = {hb['clique_bound']}, "
+                    f"α(Γ) ≤ v·(−s)/(k − s) = {hb['independence_bound']}.\n\n")
+
+        f.write(f"**Complement.** The complement has parameters "
+                f"srg({v}, {k2}, {lam2}, {mu2})")
+        if is_self_comp:
+            f.write(" — **self-complementary**")
+        f.write(".\n\n")
+
+        # --- 2. Known results ---
+        f.write("## 2. Known results\n\n")
+        f.write(f"According to Brouwer's table, srg({v},{k},{lam},{mu}) ")
+        if is_conf:
+            f.write(f"is a conference graph. For conference parameters with "
+                    f"v = {v}, the classification of the associated regular "
+                    f"two-graphs on {v}+1 = {v+1} vertices determines the "
+                    f"switching class. ")
+        f.write(f"See STATUS.md for the current classification status.\n\n")
+
+        # --- 3. Construction / Existence ---
+        f.write("## 3. Construction and existence\n\n")
+        if found:
+            f.write(f"**Result.** At least {len(found)} non-isomorphic "
+                    f"srg({v},{k},{lam},{mu}) exist(s).\n\n")
+            for i, (G, method) in enumerate(found):
+                f.write(f"**Graph {i+1}** — found via *{method}*. ")
+                if method == 'database':
+                    f.write(f"Retrieved from Sage's SRG database.\n")
+                elif method == 'paley':
+                    f.write(f"The Paley graph P({v}) on GF({v}), "
+                            f"with adjacency x ~ y iff x − y is a quadratic residue.\n")
+                elif method == 'triangular':
+                    f.write(f"The triangular graph T(n) = J(n,2).\n")
+                elif method == 'latin_square':
+                    f.write(f"A Latin square graph LS_m(n) from orthogonal arrays.\n")
+                elif method == 'power_residue':
+                    f.write(f"A cyclotomic (power residue) graph on GF({v}).\n")
+                elif method in ('seidel_switching', 'gm_switching'):
+                    f.write(f"Discovered via {'Godsil-McKay' if 'gm' in method else 'Seidel'} "
+                            f"switching from a known seed graph.\n")
+                else:
+                    f.write(f"Construction: {method}.\n")
+                f.write("\n")
+        else:
+            f.write(f"No srg({v},{k},{lam},{mu}) was found by any method attempted. ")
+            f.write("This does not constitute a nonexistence proof.\n\n")
+
+        f.write("### Methods attempted\n\n")
+        method_descriptions = {
+            'database': 'Sage strongly_regular_graph database lookup',
+            'paley': f'Paley graph P({v}) (requires v prime power, v ≡ 1 mod 4)',
+            'triangular': 'Triangular graph T(n) = J(n,2)',
+            'latin_square': 'Latin square graph LS_m(n) from orthogonal arrays',
+            'power_residue': 'Power residue (cyclotomic) graph on GF(v)',
+            'kneser': 'Kneser graph K(n,2)',
+            'complement': 'Complement of a known SRG',
+            'seidel_switching': 'Seidel switching (random subset sampling)',
+            'gm_switching': 'Godsil-McKay switching (equitable partition search)',
+        }
         for m in methods_tried:
-            f.write(f"- {m}\n")
-        f.write("\n## Results\n")
-        f.write(f"- Graphs found: {len(found)}\n")
-        f.write(f"- Non-isomorphic classes: {len(found)}\n")
-        f.write(f"- Time taken: {elapsed}\n")
-        for i, (G, method) in enumerate(found):
-            f.write(f"- Graph #{i+1}: found via `{method}`\n")
-        f.write("\n## Failures and what was learned\n")
-        f.write("_(to be filled)_\n\n")
-        f.write("## Visualizations generated\n")
-        f.write("_(see outputs/plots/)_\n\n")
-        f.write("## Open questions raised\n")
-        f.write(open_questions if open_questions else "_(none)_\n")
-        f.write("\n## Next suggested experiment\n")
-        f.write("_(see STATUS.md for next OPEN target)_\n")
+            desc = method_descriptions.get(m, m)
+            f.write(f"- **{m}**: {desc}\n")
+        f.write("\n")
+
+        # --- 4. Invariant analysis ---
+        if found:
+            f.write("## 4. Invariant analysis\n\n")
+            f.write("| Graph | Method | |Aut(Γ)| | 2-rank | 3-rank | 5-rank |\n")
+            f.write("|-------|--------|---------|--------|--------|--------|\n")
+            for i, (G, method) in enumerate(found):
+                aut = aut_orders[i] if i < len(aut_orders) else '?'
+                prof = p_profiles[i] if i < len(p_profiles) else {}
+                f.write(f"| {i+1} | {method} | {aut} | "
+                        f"{prof.get(2,'?')} | {prof.get(3,'?')} | {prof.get(5,'?')} |\n")
+            f.write("\n")
+
+            if len(found) == 1:
+                f.write(f"Only one graph found. Whether srg({v},{k},{lam},{mu}) is "
+                        f"unique requires either an exhaustive search or a theoretical "
+                        f"argument.\n\n")
+            elif len(found) > 1:
+                # Check if p-ranks distinguish them
+                distinct_profiles = len(set(str(p) for p in p_profiles))
+                if distinct_profiles == len(found):
+                    f.write(f"All {len(found)} graphs are distinguished by their p-rank profiles.\n\n")
+                else:
+                    f.write(f"Some graphs share p-rank profiles; finer invariants "
+                            f"(subconstituent structure, clique geometry) may be needed.\n\n")
+
+        # --- 5. Open questions ---
+        f.write("## 5. Open questions\n\n")
+        if open_questions:
+            f.write(open_questions + "\n\n")
+        if found and len(found) == 1:
+            f.write(f"- Is srg({v},{k},{lam},{mu}) unique, or do non-isomorphic copies exist?\n")
+            f.write(f"- Can the switching class be fully enumerated?\n")
+        if not found:
+            f.write(f"- Does srg({v},{k},{lam},{mu}) exist? "
+                    f"Can existence be proved or ruled out?\n")
+        f.write(f"- What is the full automorphism group?\n")
+        if is_conf:
+            f.write(f"- What is the structure of the associated regular two-graph on {v+1} vertices?\n")
+        f.write("\n")
+
+        # --- 6. Computational evidence ---
+        f.write("## 6. Computational evidence\n\n")
+        f.write(f"All computations performed in SageMath. "
+                f"Reproducible script: `run.sage`. "
+                f"Graph files: `outputs/graphs/`. "
+                f"Session time: {elapsed}.\n")
 
 
 def write_summary_json(exp_dir, exp_name, v, k, lam, mu,

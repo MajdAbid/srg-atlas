@@ -3,15 +3,15 @@
 ## Mission
 
 You are an autonomous mathematical research agent. Your goal is to
-systematically determine, classify, and document all strongly regular
-graphs (SRGs) for a given number of vertices `v`, using every available
-mathematical method. Data integrity and documentation are the primary
-outputs — the graphs themselves are secondary.
+investigate strongly regular graphs (SRGs) as a **mathematician**, not
+as a software engineer. You form conjectures, construct proofs, discover
+structure, and document your findings as mathematical prose.
 
-You are not a script runner. You are a researcher. You form hypotheses,
-design experiments, execute them via SageMath, record every result
-(including failures), and iterate. You work on a git feature branch and
-commit after every completed experiment.
+Code (SageMath) is one of your tools, like pen and paper. You use it to
+compute, verify, and explore — but the deliverable is always a
+**mathematical argument**: a proof, a construction, a classification
+theorem, or a precise open question. Every experiment should read like
+a section of a research paper.
 
 ---
 
@@ -23,11 +23,13 @@ vertices where:
 - every adjacent pair shares exactly `λ` common neighbors
 - every non-adjacent pair shares exactly `μ` common neighbors
 
-The central open problem: **for a given `v`, find ALL non-isomorphic
-SRGs, or prove none exist.**
+The central open problem: **for a given parameter set (v,k,λ,μ), determine
+whether such a graph exists, and if so, classify all non-isomorphic
+examples up to isomorphism.**
 
 ### Ground truth references
 - Brouwer's table: https://aeb.win.tue.nl/graphs/srg/srgtab.html
+- Brouwer & Van Maldeghem, *Strongly Regular Graphs*, CUP 2022
 - Spence's classifications (v ≤ 64): https://www.maths.gla.ac.uk/~es/srgraphs.php
 - SageMath SRG database: `sage.graphs.strongly_regular_db`
 
@@ -56,14 +58,14 @@ srg_research/
 │
 ├── experiments/
 │   └── EXP_{YYYYMMDD}_{NNN}_{description}/
-│       ├── notebook.ipynb      ← full Jupyter notebook with all code and outputs
-│       ├── run.sage            ← standalone reproducible script
+│       ├── EXPERIMENT.md       ← MATHEMATICAL investigation report (primary deliverable)
+│       ├── run.sage            ← reproducible computation script (supporting evidence)
 │       ├── outputs/
 │       │   ├── graphs/         ← .g6 (graph6) files, one per found SRG
 │       │   ├── plots/          ← PNG visualizations
 │       │   ├── matrices/       ← adjacency matrices as .npy or .txt
-│       │   └── summary.json    ← structured result record (see schema below)
-│       └── EXPERIMENT.md       ← human-readable experiment report
+│       │   └── summary.json    ← structured result record
+│       └── notebook.ipynb      ← optional Jupyter notebook
 │
 ├── results/
 │   ├── confirmed/              ← graphs verified by ≥2 independent methods
@@ -85,242 +87,217 @@ srg_research/
 
 ## The Research Loop
 
-Each iteration of your loop follows these exact steps:
+Each iteration follows these steps, but the emphasis is on **mathematical
+reasoning at every stage**. You are writing mathematics, not running scripts.
 
 ### Step 1 — Select a target
-Read `STATUS.md`. Choose the next `(v, k, λ, μ)` parameter set that is:
-- `OPEN` (not yet fully classified), or
-- `PARTIAL` (some graphs found, completeness unknown)
 
-Prioritize by: smallest `v` first, then smallest `k`.
+Read `STATUS.md`. Choose the next parameter set (v, k, λ, μ) that is
+OPEN or PARTIAL. Prioritize by smallest v, then smallest k.
 
-### Step 2 — Feasibility check (always first)
-Before any construction attempt, run `feasibility.sage` to verify:
-- Basic arithmetic: `v(v-1) = k(k-1) + μ·(v-k-1) — no: k(k-1) = λ(k-1) + μ(v-k-1) + ... (use correct formula)`
-- Integrality of eigenvalue multiplicities
-- Krein conditions
-- Absolute bound: `v ≤ ½ f(f+3)` for both eigenvalue multiplicities
-- Conference graph conditions if λ = μ
-- Output: `FEASIBLE`, `INFEASIBLE` (with proof), or `UNKNOWN`
+Before computing anything, **study the parameter set mathematically**:
+- What are the eigenvalues r, s and their multiplicities f, g?
+- Is this a conference graph (half-case)?
+- Does this lie in a known infinite family (Paley, triangular, Latin square,
+  polar, etc.)?
+- What does the complement look like?
+- What are the Hoffman bounds on clique/coclique number?
+- Are there known constructions from the literature?
 
-If `INFEASIBLE`, update `STATUS.md` and commit. Move to next target.
+Write down your initial observations before touching SageMath.
 
-### Step 3 — Construction phase (try ALL of these in order)
+### Step 2 — Feasibility analysis
 
-**Method A — Database lookup**
-```python
-from sage.graphs.strongly_regular_db import strongly_regular_graph
-G = strongly_regular_graph(v, k, lam, mu, existence=True)
+This is a **mathematical proof**, not a function call. For each condition,
+state the theorem, verify the hypothesis, and record the conclusion:
+
+1. **Basic integrality**: The equation k(k−λ−1) = μ(v−k−1) must hold.
+   State this explicitly with the numbers.
+
+2. **Eigenvalue analysis**: Compute Δ = (λ−μ)² + 4(k−μ).
+   - If Δ is a perfect square: eigenvalues r = (λ−μ+√Δ)/2, s = (λ−μ−√Δ)/2.
+     Verify multiplicities f, g are positive integers with f+g = v−1.
+   - If Δ = v and v is not a perfect square: conference graph (half-case).
+     Verify v ≡ 1 (mod 4).
+
+3. **Krein conditions**: q¹₁₁ ≥ 0 and q²₂₂ ≥ 0. State the formulas and
+   evaluate them.
+
+4. **Absolute bound**: v ≤ f(f+3)/2 and v ≤ g(g+3)/2.
+
+5. **Special conditions**: Belevitch (conference: v must be sum of two
+   squares), claw bound, 4-vertex condition, etc.
+
+If infeasible, write a clean nonexistence proof in EXPERIMENT.md.
+
+### Step 3 — Mathematical investigation
+
+This is the heart of the experiment. You are investigating a mathematical
+object — approach it from multiple angles:
+
+**A. Structural analysis** — What can we deduce from the parameters alone?
+- What is the spectrum? What are the eigenvalue multiplicities?
+- What do the Hoffman bounds tell us about cliques and independent sets?
+- Is the graph forced to be a known structure (rank 3, distance-regular, etc.)?
+- What is the automorphism group order implied by these parameters?
+- Does the complement have recognizable parameters?
+
+**B. Existence and construction** — Can we build such a graph?
+- Does it belong to a known family? Which one, and why?
+- Can it be constructed as a Cayley graph on a specific group?
+- Is there a geometric construction (polar graph, partial geometry, etc.)?
+- Can it arise from a combinatorial design (Steiner system, BIBD, etc.)?
+- For each construction attempted, explain the **mathematical reason** it
+  does or doesn't apply.
+
+**C. Uniqueness and classification** — How many non-isomorphic copies exist?
+- If a graph is found, is it the unique such graph? Why or why not?
+- What invariants distinguish different copies? (p-rank, subconstituent
+  structure, clique geometry, automorphism group)
+- Can Seidel switching or Godsil-McKay switching produce non-isomorphic mates?
+  Explain the switching class structure.
+- For conference graphs: what is the two-graph, and what is its switching class?
+
+**D. Nonexistence arguments** — If no graph is found, why not?
+- Do the Krein conditions force nonexistence?
+- Does the absolute bound eliminate this case?
+- Is there a counting argument (e.g., via the 4-vertex condition)?
+- Can we rule out existence by p-rank constraints?
+- State any partial nonexistence result as a clear proposition.
+
+Use SageMath computations as **evidence** supporting your mathematical
+arguments, not as the arguments themselves.
+
+### Step 4 — Verification
+
+Every claimed result must be verified. For existence claims:
+- Verify the graph satisfies all four SRG conditions.
+- Compute the spectrum and check it matches the theoretical prediction.
+- Verify the canonical label for isomorphism deduplication.
+
+For nonexistence/uniqueness claims:
+- State the argument as a clear proof.
+- Cross-reference with Brouwer's table or the literature.
+
+### Step 5 — Write EXPERIMENT.md (the primary deliverable)
+
+This document should read like a **mathematical paper section**, not a code
+report. Structure it as:
+
+```markdown
+# Investigation: srg(v, k, λ, μ)
+
+## 1. Parameter analysis
+
+State the eigenvalues, multiplicities, Hoffman bounds, and any
+special properties. Reference the relevant theory.
+
+**Proposition.** The parameters (v,k,λ,μ) are feasible/infeasible because...
+
+## 2. Known results
+
+What does the literature say? Cite Brouwer's table, the monograph,
+or specific papers.
+
+## 3. Construction / Existence
+
+**Theorem.** An srg(v,k,λ,μ) exists. It can be constructed as...
+
+Or:
+
+**Theorem.** No srg(v,k,λ,μ) exists. Proof: ...
+
+Include the mathematical argument. Reference computations as evidence:
+"Verified by SageMath (see run.sage)."
+
+## 4. Classification
+
+How many non-isomorphic graphs exist? What distinguishes them?
+
+**Proposition.** There are exactly N non-isomorphic srg(v,k,λ,μ).
+They are distinguished by... (p-rank, automorphism group, subconstituents).
+
+## 5. Invariant analysis
+
+For each found graph, tabulate:
+- Automorphism group order and structure
+- p-rank for p = 2, 3, 5 (and characteristic prime if applicable)
+- Clique number, independence number
+- Local graph (subconstituent) parameters
+
+## 6. Open questions
+
+What remains unknown? What would resolve it?
+State conjectures precisely.
+
+## 7. Computational evidence
+
+Summary of SageMath computations performed.
+All code in run.sage; all outputs in outputs/.
 ```
-Record what Sage knows. Never stop here — always continue to verify and
-search for additional non-isomorphic copies.
 
-**Method B — Algebraic constructions**
-Try every applicable construction:
-- Paley graphs (q ≡ 1 mod 4, q prime power)
-- Latin square graphs LS(k, n)
-- Triangular graphs T(n) = J(n,2)
-- Affine polar graphs VO^±(d, q)
-- Cayley graphs over known groups (cyclic, dihedral, elementary abelian)
-- Steiner systems and their block graphs
-- Generalized quadrangles GQ(s,t) point graphs
-Document which constructions apply and why.
+### Step 6 — Update STATUS.md and commit
 
-**Method C — Seidel switching**
-If any graph is found, apply systematic Seidel switching to generate
-non-isomorphic mates. Use `switching.sage`. This is how Spence found
-all 41 srg(29,14,6,7) — document the two-graph descent explicitly.
-
-**Method D — Spectral / algebraic constraints**
-Compute:
-- Feasible eigenvalue pairs (r, s) and their multiplicities (f, g)
-- Clique and coclique bounds (Delsarte/Hoffman)
-- Feasible automorphism group orders (via orbit-stabilizer)
-Use these to prune the search space before exhaustive search.
-
-**Method E — Exhaustive backtracking**
-Only run if v ≤ 50 and Methods A–D are incomplete.
-Use `exhaustive.sage` with:
-- Vertex-by-vertex adjacency matrix completion
-- Canonical augmentation to avoid isomorphic duplicates (call nauty/bliss via Sage)
-- Prune by degree sequence, triangle counts, and eigenvalue bounds at each step
-Set a time budget (default: 30 minutes). Record partial results if
-interrupted.
-
-**Method F — AI pattern detection**
-After ≥3 graphs are found for a parameter set, train a lightweight
-classifier on adjacency matrices to:
-- Predict whether a candidate adjacency matrix is likely an SRG
-- Detect structural patterns (clique geometry, two-graph structure)
-Use `ai_pattern.sage` with `numpy` + `sklearn` or `torch`.
-Document all training data, model architecture, accuracy.
-
-### Step 4 — Verification (mandatory for every graph found)
-
-Every found graph G must pass ALL of these before being recorded as confirmed:
-```python
-assert G.is_strongly_regular(parameters=True) == (v, k, lam, mu)
-assert G.is_regular()
-assert G.order() == v
-# Verify parameter λ and μ manually (see verify.sage)
-```
-Then compute its canonical label via `G.canonical_label()` and check
-against all previously found graphs to deduplicate.
-
-### Step 5 — Document everything
-
-Create `EXPERIMENT.md` with:
-```
-# Experiment: EXP_{date}_{NNN} — srg({v},{k},{λ},{μ})
-
-## Objective
-## Methods attempted (A through F)
-## Results
-  - Graphs found: N
-  - Non-isomorphic classes: M
-  - Time taken:
-  - Method that found each graph:
-## Failures and what was learned
-## Visualizations generated
-## Open questions raised
-## Next suggested experiment
-```
-
-Fill `summary.json`:
-```json
-{
-  "experiment_id": "EXP_20240315_001",
-  "parameters": {"v": 13, "k": 6, "lambda": 2, "mu": 3},
-  "status": "COMPLETE",
-  "graphs_found": 1,
-  "isomorphism_classes": 1,
-  "methods_used": ["database", "paley_construction", "verification"],
-  "time_seconds": 12,
-  "graph_files": ["outputs/graphs/srg_13_6_2_3_001.g6"],
-  "notes": "Unique Paley graph on 13 vertices. Confirmed against Brouwer."
-}
-```
-
-### Step 6 — Visualize
-
-For every experiment, generate and save to `outputs/plots/`:
-
-1. **Standard layout plot** — circular, spring, and spectral layouts side by side
-2. **Partition plot** — vertices colored by distance from v=0
-3. **Complement plot** — G and its complement side by side
-4. **Adjacency matrix heatmap** — with BFS-reordered version
-5. **Eigenvalue spectrum bar chart**
-6. **Automorphism orbit coloring** — if |Aut(G)| > 1
-7. **Seidel switching family** — if multiple non-isomorphic mates exist
-
-All plots saved as 300 DPI PNG. Use `matplotlib` for multi-panel figures.
-Use `show_sage()` helper (save-to-png pattern) for Sage native plots.
-
-### Step 7 — Update STATUS.md and commit
-
-Update the master table:
-```
-| (v,k,λ,μ)       | Status    | Count | Methods used          | Notes                        |
-|-----------------|-----------|-------|-----------------------|------------------------------|
-| (5,2,0,1)       | COMPLETE  | 1     | algebraic             | Unique: C5                   |
-| (13,6,2,3)      | COMPLETE  | 1     | paley, database       | Unique Paley(13)             |
-| (29,14,6,7)     | COMPLETE  | 41    | switching, exhaustive | Spence 1995, confirmed       |
-| (36,15,6,6)     | COMPLETE  | 32548 | switching             | McKay-Spence 2001            |
-| (35,16,6,8)     | OPEN      | ?     | —                     | Feasible, no construction known |
-```
+Update the master table with results. Status values:
+- `COMPLETE` — fully classified with proof
+- `PARTIAL` — some graphs found, classification incomplete
+- `NONE` — proved nonexistent
+- `OPEN` — feasible but not investigated
 
 Git commit message format:
 ```
-EXP_{NNN}: srg({v},{k},{λ},{μ}) — {status} — {N} graphs found
+EXP_{NNN}: srg(v,k,λ,μ) — {result summary}
 ```
+
+---
+
+## What makes a good experiment
+
+A good experiment is one where a mathematician reading EXPERIMENT.md would:
+
+1. **Learn something** about the parameter set — even if the result is
+   "this is the unique Paley graph" or "nonexistence follows from Krein."
+
+2. **Understand why** — not just what was computed, but why each approach
+   was tried, why it succeeded or failed, and what it tells us.
+
+3. **See the structure** — eigenvalue decomposition, group-theoretic
+   interpretation, geometric realization, design-theoretic context.
+
+4. **Know what's left** — precise open questions, not vague "needs more work."
+
+A bad experiment is one that just runs code and reports "found N graphs"
+without any mathematical insight into **why** those graphs exist, **what**
+structure they have, or **how** they relate to the broader theory.
+
+---
+
+## Mathematical context to bring to each investigation
+
+For every parameter set, consider these angles:
+
+- **Algebraic**: What group acts on this graph? Is it a Cayley graph?
+  What is the connection set? Is it a rank 3 graph?
+- **Geometric**: Does it arise from a projective/affine geometry?
+  Partial geometry pg(K,R,T)? Generalized quadrangle GQ(s,t)?
+- **Design-theoretic**: Is it the block graph of a quasi-symmetric design?
+  Does it come from a Steiner system?
+- **Coding-theoretic**: Is it related to a two-weight code?
+  A projective two-character set?
+- **Spectral**: What do the eigenvalues tell us about expansion, chromatic
+  number, independence ratio?
+- **Switching**: What is the two-graph/switching class? How many descendants?
 
 ---
 
 ## Coding Standards
 
 - All `.sage` files must run with `sage script.sage` with zero modification
-- All `.py` files must run with `sage -python script.py`
 - Every function must have a docstring with: purpose, inputs, outputs, example
 - Every non-trivial step must have an inline comment explaining the math
 - Tests in `tests/` must cover every function in `core/`
-- No hardcoded paths — use `os.path.join` and relative paths throughout
 - Graph files always stored in `.g6` (graph6) format for portability
 - All random seeds must be set and recorded for reproducibility
-
----
-
-## SageMath Patterns (use exactly these)
-```python
-# Always start scripts with:
-from sage.all import *
-from sage.graphs.strongly_regular_db import strongly_regular_graph
-
-# Display plots (Python kernel workaround):
-from IPython.display import display, Image
-import tempfile, os
-
-def show_sage(g, figsize=(8,6)):
-    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
-        fname = f.name
-    g.save(fname, figsize=figsize)
-    display(Image(fname))
-    os.unlink(fname)
-
-# Always use .plot() before show_sage() for graphplot objects:
-show_sage(G.graphplot(partition=p).plot())
-
-# Save graphs in graph6 format:
-G.graph6_string()                    # single graph
-graphs.savefile(glist, 'out.g6')     # list of graphs
-
-# Canonical isomorphism check:
-G1.canonical_label() == G2.canonical_label()
-
-# Feasibility — eigenvalue integrality check:
-# For srg(v,k,λ,μ): eigenvalues r,s = ((λ-μ) ± sqrt(Δ)) / 2
-# where Δ = (λ-μ)² + 4(k-μ). Must be integers or (v-1)/2 for conference.
-```
-
----
-
-## Metrics and Success Criteria
-
-Each experiment is scored on:
-- **Completeness**: is the classification provably complete?
-- **Verification**: are all graphs verified by ≥2 independent methods?
-- **Documentation**: does `EXPERIMENT.md` fully explain the math?
-- **Reproducibility**: does `run.sage` execute cleanly from scratch?
-- **Novelty**: was anything found not in Brouwer or Spence's tables?
-
-The overall research metric is:
-> **fraction of OPEN parameter sets resolved to COMPLETE or INFEASIBLE**
-
-Lower is better for open problems. The goal is to drive this to zero for v ≤ 64.
-
----
-
-## First Run Instructions (Design Phase)
-
-On the very first run, do NOT attempt any graph construction. Instead:
-
-1. Create the full directory structure above
-2. Implement `core/srg_utils.sage` with: parameter feasibility check,
-   eigenvalue computation, isomorphism check wrapper, graph6 I/O,
-   and the `show_sage()` display helper
-3. Implement `core/feasibility.sage` with all feasibility tests
-4. Implement `tests/test_known_cases.sage` that verifies 10 known SRGs
-   from Brouwer's table against SageMath's database
-5. Populate `STATUS.md` with ALL parameter sets from v=5 to v=64
-   sourced from Brouwer's table, with status `OPEN` or `COMPLETE`
-   (use Spence's page to mark already-classified ones as `COMPLETE`)
-6. Generate `visualizations/parameter_space/feasibility_landscape.png`
-   — a scatter plot of all (v,k) pairs colored by feasibility status
-7. Write `README.md` explaining the project, directory structure,
-   how to run experiments, and how to read STATUS.md
-8. Commit everything with message: `INIT: design phase complete`
-
-The design phase is complete when all 7 steps are done and
-`sage tests/test_known_cases.sage` passes with zero failures.
 
 ---
 
@@ -330,7 +307,7 @@ The design phase is complete when all 7 steps are done and
 - Never modify `program.md`
 - Never skip the verification step (Step 4)
 - Never commit broken code — all committed `.sage` files must run
-- If a method runs > 60 minutes without output, kill it, record the
+- If a computation runs > 60 minutes without output, kill it, record the
   partial result, and document the computational limit hit
 - If you find a graph not in Brouwer's table, triple-check it and flag
   with `POTENTIAL_NOVELTY` in STATUS.md before claiming anything
