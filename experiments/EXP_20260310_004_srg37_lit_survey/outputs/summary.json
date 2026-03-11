@@ -1,0 +1,11 @@
+{
+  "experiment_id": "EXP_20260310_004_srg37_lit_survey",
+  "parameters": {"v": 37, "k": 18, "lambda": 8, "mu": 9},
+  "status": "LITERATURE_SURVEY",
+  "graphs_found": 0,
+  "isomorphism_classes": 0,
+  "methods_used": ["literature_survey", "feasibility_check_analytical", "spectral_analysis_analytical"],
+  "time_seconds": 0,
+  "graph_files": [],
+  "notes": "Conference graph (v=37 prime ≡ 1 mod 4). Known count: ≥6802 (194 regular two-graphs on 38 vertices × descendants). Classification open. No S3 automorphism group (Maksimovic 2018). Next: Python Seidel switching experiment."
+}

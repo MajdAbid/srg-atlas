@@ -1,0 +1,19 @@
+{
+  "experiment_id": "EXP_20260310_005_srg37_seidel_py",
+  "parameters": {
+    "v": 37,
+    "k": 18,
+    "lambda": 8,
+    "mu": 9
+  },
+  "status": "PARTIAL",
+  "graphs_found": 1,
+  "isomorphism_classes": 1,
+  "methods_used": [
+    "paley_construction",
+    "twograph_descent_bfs",
+    "simulated_annealing"
+  ],
+  "time_seconds": 42.7,
+  "notes": "Paley(37) BFS: 1 classes in Paley switching class. SA (8 runs \u00d7 250000 steps): found 0 SRGs. Non-Paley classes: 0. Literature lower bound: \u22656802 non-iso srg(37,18,8,9)."
+}

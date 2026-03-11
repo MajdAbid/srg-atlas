@@ -144,3 +144,28 @@ Completed: 2026-03-10
 - [x] `STATUS.md` populated with 136 feasible parameter sets (v=5..64)
 - [x] `visualizations/parameter_space/feasibility_landscape.png` generated
 - [x] All 3 test files pass with zero failures
+
+## Research Session: 2026-03-10 (Experiments 004–005)
+
+Target: srg(37,18,8,9) — smallest PARTIAL parameter set.
+
+**EXP_20260310_004** (Literature Survey):
+- Confirmed: ≥6,802 non-isomorphic srg(37,18,8,9) known
+- Source: ≥194 regular two-graphs on 38 vertices (McKay-Spence 2001, extended 2022–23)
+- 2 self-complementary examples (including Paley(37))
+- No srg(37,18,8,9) with S₃ automorphism group (Maksimović 2018)
+- STATUS.md updated accordingly
+
+**EXP_20260310_005** (Two-graph descent + SA):
+- Paley(37) verified as srg(37,18,8,9) with correct parameters
+- Eigenvalues: k=18, r≈2.54, s≈-3.54 (irrational — confirmed conference graph)
+- Paley(37) is self-complementary (complement isomorphic to itself)
+- Diameter = 2 (distance-2 partition: 1 | 18 | 18)
+- **Key finding**: All 37 two-graph descent pivots give graphs isomorphic to Paley(37).
+  Paley(37) occupies a SINGLETON switching class (vertex-transitivity forces this).
+- SA local search (8 runs × 250k steps): energy reduced ~75% (1500→370) but
+  did NOT converge to E=0. Finding new srg(37,18,8,9) requires SageMath/nauty
+  or the McKay-Spence enumeration algorithm.
+- 7 visualizations generated (see experiments/EXP_20260310_005.../outputs/plots/)
+
+**Next target**: srg(41,20,9,10) — next smallest PARTIAL, also a conference graph.
