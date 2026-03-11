@@ -209,35 +209,37 @@ def deduplicate_graphs(graph_list):
 # Verification
 # ---------------------------------------------------------------------------
 
-def verify_srg(G, v, k, lam, mu):
+def verify_srg(G, v, k, lam, mu, verbose=True):
     """
     Verify that graph G is a strongly regular graph with given parameters.
 
     Inputs:
         G         : a Sage Graph
         v, k, lam, mu : expected SRG parameters
+        verbose   : if False, suppress FAIL messages (default True)
 
     Outputs:
-        True if G is srg(v,k,lam,mu), False otherwise, with reason printed
+        True if G is srg(v,k,lam,mu), False otherwise
 
     Example:
         verify_srg(G, 13, 6, 2, 3)
+        verify_srg(G, 13, 6, 2, 3, verbose=False)
     """
     if G.order() != v:
-        print(f"FAIL: order {G.order()} != {v}")
+        if verbose: print(f"FAIL: order {G.order()} != {v}")
         return False
     if not G.is_regular():
-        print("FAIL: not regular")
+        if verbose: print("FAIL: not regular")
         return False
     if G.degree()[0] != k:
-        print(f"FAIL: degree {G.degree()[0]} != {k}")
+        if verbose: print(f"FAIL: degree {G.degree()[0]} != {k}")
         return False
     params = G.is_strongly_regular(parameters=True)
     if params is False:
-        print("FAIL: not strongly regular")
+        if verbose: print("FAIL: not strongly regular")
         return False
     if params != (v, k, lam, mu):
-        print(f"FAIL: params {params} != ({v},{k},{lam},{mu})")
+        if verbose: print(f"FAIL: params {params} != ({v},{k},{lam},{mu})")
         return False
     return True
 

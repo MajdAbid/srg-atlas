@@ -12,6 +12,7 @@ Two-graph descent: all SRGs srg(v,k,λ,μ) with μ=k/2 correspond to
 
 from sage.all import *
 import itertools
+import random
 import os
 import sys
 _CORE_DIR = os.path.join(os.getcwd(), 'core')
@@ -51,23 +52,29 @@ def seidel_switch(G, S):
     return H
 
 
-def switching_search(G, v, k, lam, mu, max_rounds=5, verbose=True):
-    """
-    Systematically apply Seidel switching to find non-isomorphic mates
-    of graph G with the same SRG parameters.
+# Threshold above which exhaustive enumeration is infeasible
+_EXHAUSTIVE_THRESHOLD = 20  # v <= 20: enumerate; else: random sample
 
-    Strategy: BFS over switching classes. At each round, try switching
-    over all subsets of size up to min(v//4, 10). Record non-isomorphic
-    new graphs.
+
+def switching_search(G, v, k, lam, mu, max_rounds=3, verbose=True):
+    """
+    Apply Seidel switching to find non-isomorphic mates of G with
+    the same SRG parameters.
+
+    Strategy:
+    - For small v (<=20): BFS over switching classes, try all subsets
+      of size up to min(v//4, 6).
+    - For large v (>20): random sampling — draw random subsets of
+      random sizes and check. Much more scalable.
 
     Inputs:
         G          : starting Sage Graph (srg(v,k,lam,mu))
         v,k,lam,mu : SRG parameters
-        max_rounds : BFS depth limit
+        max_rounds : BFS depth (small v) or number of random trials (large v)
         verbose    : print progress
 
     Outputs:
-        list of non-isomorphic Sage Graphs (including G) with same parameters
+        list of non-isomorphic Sage Graphs found (not including G itself)
 
     Example:
         mates = switching_search(G, 29, 14, 6, 7)
@@ -75,36 +82,74 @@ def switching_search(G, v, k, lam, mu, max_rounds=5, verbose=True):
     seen_labels = set()
     found = []
 
+    # Pre-seed with G's canonical label to avoid re-discovering it
+    seen_labels.add(G.canonical_label().graph6_string())
+
     def add_if_new(H):
-        if verify_srg(H, v, k, lam, mu):
+        if verify_srg(H, v, k, lam, mu, verbose=False):
             cl = H.canonical_label().graph6_string()
             if cl not in seen_labels:
                 seen_labels.add(cl)
                 found.append(H)
                 if verbose:
-                    print(f"  New SRG mate #{len(found)}")
+                    print(f"    [switching] New SRG mate #{len(found)}")
                 return True
         return False
 
-    add_if_new(G)
-    queue = [G]
+    verts = list(G.vertices())
 
-    for round_num in range(max_rounds):
+    # Helper: check if a global time_is_up() function is available (from timer.sage)
+    def _time_is_up():
+        try:
+            return time_is_up()
+        except NameError:
+            return False
+
+    if v <= _EXHAUSTIVE_THRESHOLD:
+        # Exhaustive BFS for small graphs
+        queue = [G]
+        for round_num in range(max_rounds):
+            if _time_is_up():
+                break
+            if verbose:
+                print(f"    [switching] Round {round_num+1}: queue={len(queue)}, found={len(found)}")
+            next_queue = []
+            for H in queue:
+                if _time_is_up():
+                    break
+                max_size = min(len(verts) // 4, 6)
+                for size in range(1, max_size + 1):
+                    if _time_is_up():
+                        break
+                    for S in itertools.combinations(verts, size):
+                        if _time_is_up():
+                            break
+                        H2 = seidel_switch(H, list(S))
+                        if add_if_new(H2):
+                            next_queue.append(H2)
+            if not next_queue:
+                break
+            queue = next_queue
+    else:
+        # Random sampling for large graphs
+        n_trials = max_rounds * 500
+        min_size = 2
+        max_size = max(min_size, v // 4)
+
         if verbose:
-            print(f"  Round {round_num+1}: queue={len(queue)}, found={len(found)}")
-        next_queue = []
-        for H in queue:
-            verts = list(H.vertices())
-            # Try all subsets of size up to min(v//4, 8)
-            max_size = min(len(verts) // 4, 8)
-            for size in range(1, max_size + 1):
-                for S in itertools.combinations(verts, size):
-                    H2 = seidel_switch(H, list(S))
-                    if add_if_new(H2):
-                        next_queue.append(H2)
-        if not next_queue:
-            break
-        queue = next_queue
+            print(f"    [switching] Random sampling: {n_trials} trials, "
+                  f"set sizes {min_size}..{max_size}")
+
+        for trial in range(n_trials):
+            if _time_is_up():
+                break
+            size = random.randint(min_size, max_size)
+            S = random.sample(verts, size)
+            H2 = seidel_switch(G, S)
+            add_if_new(H2)
+
+        if verbose:
+            print(f"    [switching] Done: {len(found)} new mate(s) found")
 
     return found
 
