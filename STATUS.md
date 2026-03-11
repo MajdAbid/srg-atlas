@@ -51,7 +51,7 @@ Non-primitive cases (μ=0 or μ=k) are excluded.
 | (36,21,12,12) | COMPLETE | 180 | — | Complements of srg(36,14,4,6) |
 | (36,21,10,15) | COMPLETE | 1 | — | Unique: complement of T(9) |
 | (36,25,16,20) | COMPLETE | 1 | — | Unique: complement of srg(36,10,4,2) |
-| (37,18,8,9) | PARTIAL | ? | — | Some known (conference); classification open |
+| (37,18,8,9) | PARTIAL | ? | EXP_20260310_004_srg37_18_8_9 | Some known (conference); classification open |
 | (40,12,2,4) | COMPLETE | 28 | — | Spence 2000 |
 | (40,27,18,18) | COMPLETE | 28 | — | Complements of srg(40,12,2,4) |
 | (41,20,9,10) | PARTIAL | ? | — | Some known (conference); classification open |

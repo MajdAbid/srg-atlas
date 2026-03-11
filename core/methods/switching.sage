@@ -12,7 +12,7 @@ Two-graph descent: all SRGs srg(v,k,λ,μ) with μ=k/2 correspond to
 
 from sage.all import *
 import itertools
-import random
+import random as _random
 import os
 import sys
 _CORE_DIR = os.path.join(os.getcwd(), 'core')
@@ -143,8 +143,8 @@ def switching_search(G, v, k, lam, mu, max_rounds=3, verbose=True):
         for trial in range(n_trials):
             if _time_is_up():
                 break
-            size = random.randint(min_size, max_size)
-            S = random.sample(verts, size)
+            size = _random.randint(min_size, max_size)
+            S = _random.sample(verts, size)
             H2 = seidel_switch(G, S)
             add_if_new(H2)
 

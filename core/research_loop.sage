@@ -260,7 +260,8 @@ def run_session(minutes=10):
         return
 
     v, k, lam, mu = target['v'], target['k'], target['lam'], target['mu']
-    print(f"Target: srg({v},{k},{lam},{mu})  [status={target['status']}]\n")
+    original_status = target['status']
+    print(f"Target: srg({v},{k},{lam},{mu})  [status={original_status}]\n")
 
     if time_is_up():
         wrap_up(notes=f"Timer expired before starting srg({v},{k},{lam},{mu}).")
@@ -289,7 +290,7 @@ def run_session(minutes=10):
     found = run_constructions(v, k, lam, mu, exp_dir, verbose=True)
 
     if time_is_up():
-        _finish(v, k, lam, mu, exp_dir, exp_name, found,
+        _finish(v, k, lam, mu, exp_dir, exp_name, found, original_status,
                 partial=True, notes=f"Timer expired during construction for srg({v},{k},{lam},{mu}).")
         return
 
@@ -307,15 +308,15 @@ def run_session(minutes=10):
             print(f"  FAILED verification via {method}: {result['notes']}")
 
     if time_is_up():
-        _finish(v, k, lam, mu, exp_dir, exp_name, verified,
+        _finish(v, k, lam, mu, exp_dir, exp_name, verified, original_status,
                 partial=True, notes=f"Timer expired after verification for srg({v},{k},{lam},{mu}).")
         return
 
     # Steps 5, 6, 7: document, visualize, update STATUS
-    _finish(v, k, lam, mu, exp_dir, exp_name, verified, partial=False)
+    _finish(v, k, lam, mu, exp_dir, exp_name, verified, original_status, partial=False)
 
 
-def _finish(v, k, lam, mu, exp_dir, exp_name, found,
+def _finish(v, k, lam, mu, exp_dir, exp_name, found, original_status,
             partial=False, notes=''):
     """Steps 5-7: document, update STATUS.md, commit."""
     elapsed = elapsed_str()
@@ -334,8 +335,17 @@ def _finish(v, k, lam, mu, exp_dir, exp_name, found,
     write_summary_json(exp_dir, exp_name, v, k, lam, mu, found, methods_used, elapsed_s)
 
     # Step 7: update STATUS.md
+    # Never auto-promote a PARTIAL entry to COMPLETE — classification is open per Brouwer.
+    # Only promote OPEN → COMPLETE if we found graphs (and no timer interrupt).
     print("\nStep 7: Updating STATUS.md...")
-    new_status = 'PARTIAL' if partial else ('COMPLETE' if found else 'OPEN')
+    if partial:
+        new_status = 'PARTIAL'
+    elif original_status == 'PARTIAL':
+        new_status = 'PARTIAL'  # Keep PARTIAL; only a proof of completeness can upgrade
+    elif found:
+        new_status = 'COMPLETE'
+    else:
+        new_status = 'OPEN'
     count = len(found) if found else '?'
     status_notes = f"{exp_name}; {', '.join(methods_used) or '—'}; {elapsed}"
     update_status(v, k, lam, mu, new_status, count, status_notes)
